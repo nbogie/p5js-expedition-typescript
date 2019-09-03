@@ -20,6 +20,7 @@ const gThingNames: string[] = [
   "map",
   "present",
   "skull",
+  "steak",
   "swordsman",
   "watermelon"
 ];
