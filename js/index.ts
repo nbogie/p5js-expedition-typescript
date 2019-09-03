@@ -7,18 +7,18 @@ let debug = true;
 
 let debugColor: p5.Color;
 let imgPlayer: p5.Image;
-let imgChest: p5.Image;
-let imgGrass: p5.Image;
 let imgRiver: p5.Image;
-
 type ImageMap = Record<string, p5.Image>;
 
 const grassImages: ImageMap = {};
+const allImages: ImageMap = {};
 function preload() {
-  imgPlayer = loadImage("build/player.png");
-  imgChest = loadImage("build/chest.png");
-  imgGrass = loadImage("build/grass.png");
+  imgPlayer = loadImage("build/elephant.png");
   imgRiver = loadImage("build/river.png");
+
+  ["chest", "elephant", "cross", "player"].forEach(name => {
+    allImages[name] = loadImage(`build/${name}.png`);
+  });
 
   "nw|n|ne|w|c|e|sw|s|se|i|nf|ef|sf|wf|hf|vf".split("|").forEach(suffix => {
     grassImages[suffix] = loadImage(`build/grass_${suffix}.png`);
@@ -50,7 +50,10 @@ function toggleDebug() {
   debug = !debug;
 }
 let gPlayer: Player;
-interface Player {
+interface TileContent {
+  imageName: string;
+}
+interface Player extends TileContent {
   pos: p5.Vector;
   mp: number;
 }
@@ -63,7 +66,7 @@ function canWalkOn(t: Tile): boolean {
 function movementPoints(t: Tile): number {
   return random([1, 5]);
 }
-function removeContentsFromTile(tile: Tile, thing: TileOccupier) {
+function removeContentsFromTile(tile: Tile, thing: TileContent) {
   const ix = tile.contents.indexOf(thing);
   if (ix >= 0) {
     tile.contents.splice(ix, 1);
@@ -176,16 +179,16 @@ function keyPressed() {
       break;
   }
 }
-interface Chest {
+interface Chest extends TileContent {
   goldValue: number;
 }
-type TileOccupier = Player | Chest;
+interface Cross extends TileContent {}
 
 interface Tile {
   tileType: TileType;
   discovered: boolean;
   pos: p5.Vector;
-  contents: TileOccupier[];
+  contents: TileContent[];
 }
 
 interface WorldMap {
@@ -228,11 +231,17 @@ function assertEqual(a: any, b: any, msg: string) {
     throw `AssertionFailed: Not equal: ${a}!==${b} (${msg})`;
   }
 }
+function assertTruthy(a: any, msg: string) {
+  if (!a) {
+    throw `AssertionFailed: Not truthy. (${msg})`;
+  }
+}
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   gMap = createWorldMap();
   //gMap = makeSimpleSquareMap(); //
-  gPlayer = { pos: createVector(0, 0), mp: 200 };
+  gPlayer = { pos: createVector(0, 0), mp: 200, imageName: "player" };
   addContentsToTile(tileAt(gPlayer.pos), gPlayer);
   imageMode(CENTER);
   console.log(autotileInfos);
@@ -287,7 +296,7 @@ function getTileImageNameSuffixBasedOnSurrounds(
   console.log({ pos: tile.pos, ns, autotileInfos, foundATI });
   return foundATI ? foundATI.name : "NONEFOUND";
 }
-function addContentsToTile(t: Tile, thing: TileOccupier) {
+function addContentsToTile(t: Tile, thing: TileContent) {
   t.contents.push(thing);
 }
 
@@ -339,10 +348,12 @@ function drawWorldMap(map: WorldMap) {
   noStroke();
   text(`Movement Points: ${gPlayer.mp}`, 50, height - 100);
 }
-function drawTileOccupier(thing: TileOccupier) {
+
+function drawTileOccupier(thing: TileContent) {
   fill("yellow");
   circle(0, 0, 10);
-  const img: p5.Image = imgPlayer;
+  const img: p5.Image = allImages[thing.imageName];
+  assertTruthy(img, `img named ${thing.imageName}`);
   image(img, 0, 0, gPixelsPerTile, gPixelsPerTile);
 }
 
