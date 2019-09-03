@@ -10,16 +10,26 @@ let imgPlayer: p5.Image;
 let imgRiver: p5.Image;
 type ImageMap = Record<string, p5.Image>;
 
+const gThingNames: string[] = [
+  "chest",
+  "cloud",
+  "cross",
+  "elephant",
+  "swordsman",
+  "skull",
+  "map"
+];
+
 const grassImages: ImageMap = {};
 const allImages: ImageMap = {};
 function preload() {
   imgPlayer = loadImage("build/elephant.png");
   imgRiver = loadImage("build/river.png");
 
-  ["chest", "elephant", "cross", "player"].forEach(name => {
+  gThingNames.concat(["player"]).forEach(name => {
     allImages[name] = loadImage(`build/${name}.png`);
   });
-
+  console.log("loaded images for ", gThingNames);
   "nw|n|ne|w|c|e|sw|s|se|i|nf|ef|sf|wf|hf|vf".split("|").forEach(suffix => {
     grassImages[suffix] = loadImage(`build/grass_${suffix}.png`);
   });
@@ -50,13 +60,6 @@ function toggleDebug() {
   debug = !debug;
 }
 let gPlayer: Player;
-interface TileContent {
-  imageName: string;
-}
-interface Player extends TileContent {
-  pos: p5.Vector;
-  mp: number;
-}
 type WalkOffset = -1 | 0 | 1;
 
 function canWalkOn(t: Tile): boolean {
@@ -168,6 +171,9 @@ function keyPressed() {
     case "d":
       walkEast();
       break;
+    case "D":
+      discoverAll();
+      break;
     case "a":
       walkWest();
       break;
@@ -179,10 +185,17 @@ function keyPressed() {
       break;
   }
 }
+interface TileContent {
+  imageName: string;
+}
+interface Player extends TileContent {
+  pos: p5.Vector;
+  mp: number;
+}
+
 interface Chest extends TileContent {
   goldValue: number;
 }
-interface Cross extends TileContent {}
 
 interface Tile {
   tileType: TileType;
@@ -211,19 +224,34 @@ function createRandomTileAt(pos: p5.Vector): Tile {
 
 function createWorldMap(): WorldMap {
   let tiles: Tile[] = [];
-  const mapWidth = 10;
+  const mapWidth = 20;
 
-  repeat(100, ix =>
+  repeat(400, ix =>
     tiles.push(
       createRandomTileAt(createVector(ix % mapWidth, Math.floor(ix / mapWidth)))
     )
   );
-
   return {
     width: mapWidth,
     height: Math.ceil(tiles.length / mapWidth),
     tiles: tiles
   };
+}
+
+function randomTileContent(): TileContent {
+  return {
+    imageName: random(gThingNames)
+  };
+}
+function randomInt(min: number, max: number): number {
+  return round(random(min, max));
+}
+
+function randomWorldPos(): p5.Vector {
+  return createVector(
+    randomInt(0, gMap.width - 1),
+    randomInt(0, gMap.height - 1)
+  );
 }
 
 function assertEqual(a: any, b: any, msg: string) {
@@ -236,10 +264,28 @@ function assertTruthy(a: any, msg: string) {
     throw `AssertionFailed: Not truthy. (${msg})`;
   }
 }
-
+function assertGTE(a: number, b: number, msg: string) {
+  if (a < b) {
+    throw `AssertionFailed: Not GTE (${a} < ${b}) (${msg})`;
+  }
+}
+function assertLTE(a: number, b: number, msg: string) {
+  if (a > b) {
+    throw `AssertionFailed: Not LTE (${a} > ${b}) (${msg})`;
+  }
+}
+function populateWorldMap() {
+  repeat(10, ix => {
+    const p = randomWorldPos();
+    const t = tileAt(p);
+    assertTruthy(t, `tile should exist at ${p}`);
+    addContentsToTile(t, randomTileContent());
+  });
+}
 function setup() {
   createCanvas(windowWidth, windowHeight);
   gMap = createWorldMap();
+  populateWorldMap();
   //gMap = makeSimpleSquareMap(); //
   gPlayer = { pos: createVector(0, 0), mp: 200, imageName: "player" };
   addContentsToTile(tileAt(gPlayer.pos), gPlayer);
@@ -293,9 +339,10 @@ function getTileImageNameSuffixBasedOnSurrounds(
       ati.adjs.n == ns.n &&
       ati.adjs.w == ns.w
   );
-  console.log({ pos: tile.pos, ns, autotileInfos, foundATI });
-  return foundATI ? foundATI.name : "NONEFOUND";
+  assertTruthy(foundATI, `autotile for ${tile.pos}`);
+  return foundATI.name;
 }
+
 function addContentsToTile(t: Tile, thing: TileContent) {
   t.contents.push(thing);
 }
@@ -339,7 +386,9 @@ function drawWorldMap(map: WorldMap) {
       image(img, 0, 0, gPixelsPerTile, gPixelsPerTile);
     }
     t.contents.forEach(thing => {
-      drawTileOccupier(thing);
+      if (t.discovered || thing.imageName === "player") {
+        drawTileOccupier(thing);
+      }
     });
     pop();
   });
@@ -350,8 +399,6 @@ function drawWorldMap(map: WorldMap) {
 }
 
 function drawTileOccupier(thing: TileContent) {
-  fill("yellow");
-  circle(0, 0, 10);
   const img: p5.Image = allImages[thing.imageName];
   assertTruthy(img, `img named ${thing.imageName}`);
   image(img, 0, 0, gPixelsPerTile, gPixelsPerTile);
@@ -374,11 +421,38 @@ function randomTile() {
   return random(gMap.tiles);
 }
 
+function discoverAll() {
+  gMap.tiles.forEach(discover);
+}
 function discover(t: Tile) {
   t.discovered = true;
 }
 type TileType = "grass" | "river";
 function runTests() {
+  testRandomInt();
+  console.log("Tests passed");
+}
+function testRandomInt() {
+  let ns: number[] = [];
+  for (let i = 0; i < 1000; i++) {
+    ns.push(randomInt(2, 9));
+  }
+
+  let min = ns[0];
+  let max = ns[0];
+  ns.forEach(n => {
+    if (n > max) {
+      max = n;
+    }
+    if (n < min) {
+      min = n;
+    }
+    assertTruthy(Number.isInteger(n), `Number.isInteger(${n})`);
+  });
+  assertGTE(min, 2, "min num generated");
+  assertLTE(max, 9, "max num generated");
+}
+function testAutoTiling() {
   const world = makeSimpleSquareMap();
 
   const t = (x: number, y: number) => tileAt(createVector(x, y));

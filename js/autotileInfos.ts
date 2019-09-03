@@ -22,7 +22,6 @@ function processOne(one: OneLine): AutoTileInfo {
     const ix: number = y * 3 + x;
     const gs = one.grid.split("").filter(c => c !== "|");
     const ch = gs[ix];
-    console.log({ x, y, ix, gs, ch });
 
     return ch === "X" ? "X" : ".";
   }
