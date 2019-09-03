@@ -11,13 +11,17 @@ let imgRiver: p5.Image;
 type ImageMap = Record<string, p5.Image>;
 
 const gThingNames: string[] = [
+  "cheese",
   "chest",
   "cloud",
   "cross",
   "elephant",
-  "swordsman",
+  "lighthouse",
+  "map",
+  "present",
   "skull",
-  "map"
+  "swordsman",
+  "watermelon"
 ];
 
 const grassImages: ImageMap = {};
@@ -275,7 +279,7 @@ function assertLTE(a: number, b: number, msg: string) {
   }
 }
 function populateWorldMap() {
-  repeat(10, ix => {
+  repeat(20, ix => {
     const p = randomWorldPos();
     const t = tileAt(p);
     assertTruthy(t, `tile should exist at ${p}`);
